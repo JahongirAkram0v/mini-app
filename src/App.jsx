@@ -1,20 +1,35 @@
 import { useEffect, useState } from 'react'
 
 function App() {
-	const [data, setData] = useState(null) // backenddan kelgan ma'lumot
-	const [loading, setLoading] = useState(true)
+	const [data, setData] = useState(null)
+	const [loading, setLoading] = useState(true) // Dastlab yuklanishni true qilish mumkin
 	const [error, setError] = useState(null)
 	const [user, setUser] = useState(null) // Telegram foydalanuvchi ma'lumotlari
 
+	// 1-qadam: Telegram foydalanuvchi ma'lumotlarini olish uchun alohida useEffect
 	useEffect(() => {
-		// Telegram user ma'lumotlarini olish
 		const tg = window.Telegram.WebApp
 		if (tg && tg.initDataUnsafe && tg.initDataUnsafe.user) {
 			setUser(tg.initDataUnsafe.user)
+		} else {
+			// Agar Telegram ma'lumotlari topilmasa, yuklanishni to'xtatib, xatolik ko'rsatish
+			setError("Telegram foydalanuvchi ma'lumotlarini olib bo'lmadi.")
+			setLoading(false)
+		}
+	}, []) // Bu faqat bir marta ishlaydi
+
+	// 2-qadam: `user` o'zgaruvchisi yangilanganda backendga so'rov yuborish
+	useEffect(() => {
+		// Agar `user` mavjud bo'lmasa (hali olinmagan bo'lsa), hech narsa qilmaymiz
+		if (!user) {
+			return
 		}
 
-		// Backenddan ma'lumot olish
-		fetch('https://6f48c76447e9.ngrok-free.app/player/${user.id}')
+		// `user` mavjud bo'lgach, yuklanishni boshlaymiz
+		setLoading(true)
+
+		// URL manzilida backtick (`) ishlatilganiga e'tibor bering
+		fetch(`https://6f48c76447e9.ngrok-free.app/player/${user.id}`)
 			.then(res => {
 				if (!res.ok) {
 					throw new Error('Serverdan noto‘g‘ri javob keldi')
@@ -23,13 +38,15 @@ function App() {
 			})
 			.then(result => {
 				setData(result)
-				setLoading(false)
 			})
 			.catch(err => {
 				setError(err.message)
+			})
+			.finally(() => {
+				// So'rov muvaffaqiyatli yoki xato bilan tugasa ham yuklanishni to'xtatamiz
 				setLoading(false)
 			})
-	}, [])
+	}, [user]) // Bu useEffect `user` o'zgarganda ishga tushadi
 
 	if (loading) return <p>⏳ Yuklanmoqda...</p>
 	if (error) return <p style={{ color: 'red' }}>❌ Xatolik: {error}</p>
@@ -37,7 +54,12 @@ function App() {
 	return (
 		<div style={{ padding: '20px' }}>
 			<h1>Backenddan kelgan ma'lumot:</h1>
-			<pre>{JSON.stringify(data, null, 2)}</pre>
+			{/* `data` mavjud bo'lganda ko'rsatish */}
+			{data ? (
+				<pre>{JSON.stringify(data, null, 2)}</pre>
+			) : (
+				<p>Ma'lumot topilmadi.</p>
+			)}
 
 			{user && (
 				<div style={{ marginTop: '20px' }}>
