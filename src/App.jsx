@@ -29,7 +29,7 @@ function App() {
 		setLoading(true)
 
 		// URL manzilida backtick (`) ishlatilganiga e'tibor bering
-		fetch(`https://6f48c76447e9.ngrok-free.app/player/${user.id}`)
+		fetch(`https://7a6f9b6bc6bc.ngrok-free.app/player/${user.id}`)
 			.then(res => {
 				if (!res.ok) {
 					throw new Error('Serverdan noto‘g‘ri javob keldi')
