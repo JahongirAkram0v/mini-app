@@ -32,9 +32,17 @@ function App() {
 		fetch(`https://7a6f9b6bc6bc.ngrok-free.app/player/${user.id}`)
 			.then(res => {
 				if (!res.ok) {
-					throw new Error('Serverdan noto‘g‘ri javob keldi')
+					// Agar javob muvaffaqiyatli bo'lmasa (status 200-299 oralig'ida bo'lmasa)
+					// Javobni matn sifatida o'qib, konsolga chiqaramiz
+					res.text().then(text => {
+						console.error(
+							"Serverdan xato javob keldi (HTML bo'lishi mumkin):",
+							text
+						)
+					})
+					throw new Error(`Server xatosi: ${res.status}`)
 				}
-				return res.json()
+				return res.json() // Faqat `res.ok` bo'lgandagina JSON'ga o'giramiz
 			})
 			.then(result => {
 				setData(result)
