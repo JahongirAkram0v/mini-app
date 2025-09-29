@@ -1,68 +1,73 @@
+import axios from 'axios' // axios'ni o'rnatishni unutmang: npm install axios
 import { useEffect, useState } from 'react'
 
 function App() {
 	const [data, setData] = useState(null)
-	const [loading, setLoading] = useState(true) // Dastlab yuklanishni true qilish mumkin
+	const [loading, setLoading] = useState(true)
 	const [error, setError] = useState(null)
-	const [user, setUser] = useState(null) // Telegram foydalanuvchi ma'lumotlari
+	const [user, setUser] = useState(null)
 
-	// 1-qadam: Telegram foydalanuvchi ma'lumotlarini olish uchun alohida useEffect
+	// 1-qadam: Telegram foydalanuvchi ma'lumotlarini olish
 	useEffect(() => {
-		const tg = window.Telegram.WebApp
-		if (tg && tg.initDataUnsafe && tg.initDataUnsafe.user) {
-			setUser(tg.initDataUnsafe.user)
-		} else {
-			// Agar Telegram ma'lumotlari topilmasa, yuklanishni to'xtatib, xatolik ko'rsatish
-			setError("Telegram foydalanuvchi ma'lumotlarini olib bo'lmadi.")
-			setLoading(false)
+		try {
+			const tg = window.Telegram.WebApp
+			if (tg && tg.initDataUnsafe && tg.initDataUnsafe.user) {
+				setUser(tg.initDataUnsafe.user)
+			} else {
+				throw new Error("Telegram foydalanuvchi ma'lumotlarini olib bo'lmadi.")
+			}
+		} catch (e) {
+			setError(e.message)
+			setLoading(false) // Xatolik bo'lsa yuklanishni to'xtatamiz
 		}
-	}, []) // Bu faqat bir marta ishlaydi
+	}, [])
 
-	// 2-qadam: `user` o'zgaruvchisi yangilanganda backendga so'rov yuborish
+	// 2-qadam: `user` olingach, backendga so'rov yuborish
 	useEffect(() => {
-		// Agar `user` mavjud bo'lmasa (hali olinmagan bo'lsa), hech narsa qilmaymiz
 		if (!user) {
+			// Agar user hali olinmagan bo'lsa (yoki telegramdan olib bo'lmagan bo'lsa),
+			// yuklanishni to'xtatib turamiz.
+			if (!error) setLoading(false)
 			return
 		}
 
-		// `user` mavjud bo'lgach, yuklanishni boshlaymiz
-		setLoading(true)
-
-		// URL manzilida backtick (`) ishlatilganiga e'tibor bering
-		fetch(`https://7a6f9b6bc6bc.ngrok-free.app/player/${user.id}`)
-			.then(res => {
-				if (!res.ok) {
-					// Agar javob muvaffaqiyatli bo'lmasa (status 200-299 oralig'ida bo'lmasa)
-					// Javobni matn sifatida o'qib, konsolga chiqaramiz
-					res.text().then(text => {
-						console.error(
-							"Serverdan xato javob keldi (HTML bo'lishi mumkin):",
-							text
-						)
-					})
-					throw new Error(`Server xatosi: ${res.status}`)
+		const fetchPlayerData = async () => {
+			setLoading(true)
+			setError(null) // Yangi so'rovdan oldin eski xatolikni tozalash
+			try {
+				// .env faylidan olingan manzil
+				const response = await axios.get(
+					`${import.meta.env.VITE_API_URL}/player/${user.id}`
+				)
+				setData(response.data)
+			} catch (err) {
+				let errorMessage = "Noma'lum xatolik yuz berdi."
+				if (err.response) {
+					errorMessage = `Server xatosi (${
+						err.response.status
+					}): ${JSON.stringify(err.response.data)}`
+				} else if (err.request) {
+					errorMessage =
+						"Serverga ulanib bo'lmadi. Internet aloqasini tekshiring."
+				} else {
+					errorMessage = err.message
 				}
-				return res.json() // Faqat `res.ok` bo'lgandagina JSON'ga o'giramiz
-			})
-			.then(result => {
-				setData(result)
-			})
-			.catch(err => {
-				setError(err.message)
-			})
-			.finally(() => {
-				// So'rov muvaffaqiyatli yoki xato bilan tugasa ham yuklanishni to'xtatamiz
+				setError(errorMessage)
+			} finally {
 				setLoading(false)
-			})
-	}, [user]) // Bu useEffect `user` o'zgarganda ishga tushadi
+			}
+		}
 
+		fetchPlayerData()
+	}, [user, error]) // `user` o'zgarganda bu effekt ishga tushadi
+
+	// Render qismi o'zgarishsiz qoladi...
 	if (loading) return <p>⏳ Yuklanmoqda...</p>
 	if (error) return <p style={{ color: 'red' }}>❌ Xatolik: {error}</p>
 
 	return (
-		<div style={{ padding: '20px' }}>
+		<div style={{ padding: '20px', wordBreak: 'break-all' }}>
 			<h1>Backenddan kelgan ma'lumot:</h1>
-			{/* `data` mavjud bo'lganda ko'rsatish */}
 			{data ? (
 				<pre>{JSON.stringify(data, null, 2)}</pre>
 			) : (
