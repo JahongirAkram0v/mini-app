@@ -8,7 +8,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 function App() {
 	// --- KONFIGURATSIYA ---
 	// Ngrok manzilini doimiy ravishda yangilab turishingiz kerak
-	const BACKEND_URL = 'https://6f48c76447e9.ngrok-free.app'
+	const BACKEND_URL = 'https://5c84c838a311.ngrok-free.app'
 	// -----------------------
 
 	// --- HOLATNI BOSHQARISH (STATE MANAGEMENT) ---
