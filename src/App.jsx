@@ -32,7 +32,7 @@ function App() {
 		}
 
 		// To'liq URL manzilini tuzish, /api prefiksini kiritish
-		const apiUrl = `${API_BASE_URL}/api/player/${idToFetch}`
+		const apiUrl = `${API_BASE_URL}/player/${idToFetch}`
 
 		console.log("Yuborilayotgan To'liq URL:", apiUrl)
 
