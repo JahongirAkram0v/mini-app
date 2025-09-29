@@ -3,7 +3,7 @@ import { useCallback, useEffect, useState } from 'react'
 function App() {
 	// Holat o'zgaruvchilari
 	const [data, setData] = useState(null)
-	const [loading, setLoading] = useState(false) // Yuklanish holati. Dastlab false
+	const [loading, setLoading] = useState(false)
 	const [error, setError] = useState(null)
 
 	// Foydalanuvchi kiritayotgan ID
@@ -12,26 +12,26 @@ function App() {
 	const [activePlayerId, setActivePlayerId] = useState(null)
 
 	/**
-	 * Backendga ma'lumotlarni olish uchun asinxron funksiya.
-	 * Bu funksiya faqatgina activePlayerId o'zgarganda useEffect orqali chaqiriladi.
+	 * Backendga ma'lumotlarni olish uchun asinxron funksiya (fetch orqali).
 	 */
 	const fetchPlayerData = useCallback(async idToFetch => {
 		setLoading(true)
 		setError(null)
 		setData(null)
 
-		// Environment variable ni process.env orqali olish (kompilyatsiya xatosini tuzatish)
+		// API manzilini qattiq kodlash orqali olish (ilgari foydalanilganidek)
+		// Eslatma: ngrok manzilini yangilab turish kerak
 		const API_BASE_URL = 'https://f41ce2be4656.ngrok-free.app'
 
-		if (!API_BASE_URL) {
+		if (!API_BASE_URL || API_BASE_URL === 'YOUR_NGROK_URL') {
 			setError(
-				"API_URL muhit o'zgaruvchisi topilmadi! .env faylini tekshiring."
+				"API_BASE_URL o'rnatilmagan yoki noto'g'ri (https://f41ce2be4656.ngrok-free.app). Iltimos, ngrok manzilini tekshiring."
 			)
 			setLoading(false)
 			return
 		}
 
-		// To'liq URL manzilini tuzish, /api prefiksini kiritish (ko'pincha talab qilinadi)
+		// To'liq URL manzilini tuzish, /api prefiksini kiritish
 		const apiUrl = `${API_BASE_URL}/api/player/${idToFetch}`
 
 		console.log("Yuborilayotgan To'liq URL:", apiUrl)
@@ -39,24 +39,48 @@ function App() {
 		try {
 			const response = await fetch(apiUrl, {
 				method: 'GET',
+				// Ngrok sarlavhasi
 				headers: new Headers({
-					'ngrok-skip-browser-warning': '69420', // ngrok ogohlantirishini chetlab o'tish
-					Accept: 'application/json', // JSON qabul qilishni so'rash
+					'ngrok-skip-browser-warning': '69420',
+					Accept: 'application/json',
 				}),
 			})
-			setData(response.data)
+
+			// 🛑 1. Qadam: Javobni tekshirish (404, 500 kabi xatolar uchun)
+			if (!response.ok) {
+				const status = response.status
+				let errorDetails = `Server xatosi (${status}).`
+
+				try {
+					// Agar server JSON formatida xato xabarini yuborgan bo'lsa
+					const jsonError = await response.json()
+					errorDetails = `Server xatosi (${status}): ${JSON.stringify(
+						jsonError,
+						null,
+						2
+					)}`
+				} catch {
+					// Agar server JSON emas, balki oddiy matn yoki HTML qaytarsa
+					const textError = await response.text()
+					errorDetails = `Server xatosi (${status}): Kutilmagan javob formatida.`
+					console.error('Serverdan kelgan kutilmagan javob:', textError)
+				}
+
+				throw new Error(errorDetails)
+			}
+
+			// 🛑 2. Qadam: Javobni JSON ga o'tkazish (Oldingi xato shu yerdan edi)
+			const json = await response.json()
+			setData(json)
 		} catch (err) {
-			let errorMessage = "Noma'lum xatolik yuz berdi."
-			if (err.response) {
-				// Server javobi mavjud (masalan, 404, 500)
-				errorMessage = `Server xatosi (${
-					err.response.status
-				}): ${JSON.stringify(err.response.data)}`
-			} else if (err.request) {
-				// Tarmoq xatosi (serverga ulanish yo'q)
-				errorMessage = `Serverga ulanib bo'lmadi. Internet aloqasi yoki Ngrok tunelini tekshiring.`
-			} else {
-				errorMessage = err.message
+			// Tarmoq xatolari (masalan, internet yo'qligi) yoki response.json() xatolari shu yerga tushadi
+			let errorMessage = err.message
+			if (
+				errorMessage.includes('Failed to fetch') ||
+				errorMessage.includes('NetworkError')
+			) {
+				errorMessage =
+					'Tarmoq ulanishida muammo yoki Ngrok tuneli yopilgan. Iltimos, aloqani tekshiring.'
 			}
 			setError(errorMessage)
 		} finally {
@@ -82,11 +106,16 @@ function App() {
 			setError("Iltimos, o'yinchi ID raqamini kiriting.")
 			setActivePlayerId(null)
 			setData(null)
-		} else if (isNaN(numericId) || numericId <= 0) {
-			setError("ID faqat musbat raqamlardan iborat bo'lishi kerak.")
+		} else if (
+			isNaN(numericId) ||
+			numericId <= 0 ||
+			!Number.isInteger(numericId)
+		) {
+			setError("ID faqat musbat butun raqamlardan iborat bo'lishi kerak.")
 			setActivePlayerId(null)
 			setData(null)
 		} else {
+			setError(null)
 			// ID raqami to'g'ri, uni API chaqiruvi uchun o'rnatamiz
 			setActivePlayerId(id)
 		}
@@ -103,7 +132,7 @@ function App() {
 			className='bg-gray-50 dark:bg-gray-800 min-h-screen text-gray-900 dark:text-gray-100 transition-colors duration-300'
 		>
 			<style>
-				{/* Tailwind CSS yuklanmaganligi sababli inline va standart CSS ishlatamiz */}
+				{/* CSS uslublari avvalgidek qoldi */}
 				{`
                 .card {
                     background-color: ${
@@ -194,7 +223,10 @@ function App() {
 					<h2 className='text-red-600 dark:text-red-400 font-semibold mb-2'>
 						❌ Xatolik:
 					</h2>
-					<p className='text-red-800 dark:text-red-200 text-sm'>{error}</p>
+					{/* Xato xabarlari uchun pre ishlatiladi, chunki ular JSON formatida bo'lishi mumkin */}
+					<pre className='text-red-800 dark:text-red-200 text-sm whitespace-pre-wrap'>
+						{error}
+					</pre>
 				</div>
 			)}
 
@@ -204,12 +236,12 @@ function App() {
 						🚀 Backenddan kelgan ma'lumotlar:
 					</h2>
 					<p className='mb-2'>**Qidirilgan ID:** {activePlayerId}</p>
-					{data ? (
+					{data && Object.keys(data).length > 0 ? (
 						<pre>{JSON.stringify(data, null, 2)}</pre>
 					) : (
 						<p className='text-gray-500 dark:text-gray-400'>
-							Ma'lumot topilmadi (Server 404 yoki bo'sh javob qaytargan bo'lishi
-							mumkin). Ma'lumotlar bazangizni tekshiring.
+							Ma'lumot topilmadi. Agar serverdan 404 xatosi kelsa, ID
+							ma'lumotlar bazasida yo'qligini anglatadi.
 						</p>
 					)}
 				</div>
