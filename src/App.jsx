@@ -1,4 +1,3 @@
-import axios from 'axios'
 import { useCallback, useEffect, useState } from 'react'
 
 function App() {
@@ -38,7 +37,13 @@ function App() {
 		console.log("Yuborilayotgan To'liq URL:", apiUrl)
 
 		try {
-			const response = await axios.get(apiUrl)
+			const response = await fetch(apiUrl, {
+				method: 'GET',
+				headers: new Headers({
+					'ngrok-skip-browser-warning': '69420', // ngrok ogohlantirishini chetlab o'tish
+					Accept: 'application/json', // JSON qabul qilishni so'rash
+				}),
+			})
 			setData(response.data)
 		} catch (err) {
 			let errorMessage = "Noma'lum xatolik yuz berdi."
