@@ -37,7 +37,7 @@ function App() {
 			try {
 				// .env faylidan olingan manzil
 				const response = await axios.get(
-					`${import.meta.env.REACT_APP_API_URL}/player/${user.id}`
+					`${import.meta.env.API_URL}/player/${user.id}`
 				)
 				setData(response.data)
 			} catch (err) {
