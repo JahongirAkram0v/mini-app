@@ -21,7 +21,7 @@ function App() {
 
 		// API manzilini qattiq kodlash orqali olish (ilgari foydalanilganidek)
 		// Eslatma: ngrok manzilini yangilab turish kerak
-		const API_BASE_URL = 'https://f41ce2be4656.ngrok-free.app'
+		const API_BASE_URL = 'https://5c84c838a311.ngrok-free.app'
 
 		if (!API_BASE_URL || API_BASE_URL === 'YOUR_NGROK_URL') {
 			setError(
