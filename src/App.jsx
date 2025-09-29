@@ -8,10 +8,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 function App() {
 	// --- KONFIGURATSIYA ---
 	// Ngrok manzilini doimiy ravishda yangilab turishingiz kerak
-	const BACKEND_URL = 'https://5c84c838a311.ngrok-free.app'
-	// -----------------------
-
-	// --- HOLATNI BOSHQARISH (STATE MANAGEMENT) ---
+	const BACKEND_URL = 'https://5c84c838a311.ngrok-free.app' // ----------------------- // --- HOLATNI BOSHQARISH (STATE MANAGEMENT) ---
 	const [playerData, setPlayerData] = useState(null)
 	const [loading, setLoading] = useState(true)
 	const [error, setError] = useState(null)
@@ -19,18 +16,14 @@ function App() {
 	const [wsStatus, setWsStatus] = useState(false) // WebSocket ulanish holati
 	const [groupData, setGroupData] = useState('Ulanish kutilmoqda...')
 	const [inputState, setInputState] = useState('WAITING')
-	const [inputChooseId, setInputChooseId] = useState('')
+	const [inputChooseId, setInputChooseId] = useState('') // --- MUTABLE O'ZGARUVCHILAR (useRef) ---
 
-	// --- MUTABLE O'ZGARUVCHILAR (useRef) ---
 	const stompClientRef = useRef(null)
 	const currentChatIdRef = useRef(null)
 	const currentGroupIdRef = useRef(null)
 	const tgRef = useRef(window.Telegram.WebApp)
-	const logListElRef = useRef(null) // Loglar uchun elementga murojaat
+	const logListElRef = useRef(null) // Loglar uchun elementga murojaat // --- YORDAMCHI FUNKSIYALAR --- // Konsol loglari o'rniga ishlatiladigan funksiya
 
-	// --- YORDAMCHI FUNKSIYALAR ---
-
-	// Konsol loglari o'rniga ishlatiladigan funksiya
 	const customLog = useCallback((message, type = 'log') => {
 		const timestamp = new Date().toLocaleTimeString()
 		const logMessage = `[${timestamp}] ${message}`
@@ -45,16 +38,14 @@ function App() {
 		} else {
 			console.log(logMessage)
 		}
-	}, [])
+	}, []) // Loglar yangilanganda avtomatik pastga skroll qilish
 
-	// Loglar yangilanganda avtomatik pastga skroll qilish
 	useEffect(() => {
 		if (logListElRef.current) {
 			logListElRef.current.scrollTop = logListElRef.current.scrollHeight
 		}
-	}, [logList])
+	}, [logList]) // WebSocket holatini yangilash
 
-	// WebSocket holatini yangilash
 	const updateWebsocketStatus = useCallback(
 		isConnected => {
 			setWsStatus(isConnected)
@@ -65,9 +56,8 @@ function App() {
 			}
 		},
 		[customLog]
-	)
+	) // WebSocket ulanishi mantig'i
 
-	// WebSocket ulanishi mantig'i
 	const connectSocket = useCallback(
 		groupId => {
 			if (stompClientRef.current && stompClientRef.current.connected) {
@@ -81,9 +71,8 @@ function App() {
 			updateWebsocketStatus(false)
 			setGroupData(
 				"WebSocket orqali guruh ma'lumotlariga ulanishga urinilmoqda..."
-			)
+			) // Stomp va SockJS global ravishda mavjud bo'lishi kerak
 
-			// Stomp va SockJS global ravishda mavjud bo'lishi kerak
 			if (
 				typeof window.SockJS === 'undefined' ||
 				typeof window.Stomp === 'undefined'
@@ -105,9 +94,8 @@ function App() {
 					() => {
 						// Muvaffaqiyatli ulansa
 						stompClientRef.current = client
-						updateWebsocketStatus(true)
+						updateWebsocketStatus(true) // Obuna bo'lish
 
-						// Obuna bo'lish
 						client.subscribe(`/topic/room/${groupId}`, message => {
 							try {
 								const data = JSON.parse(message.body)
@@ -137,9 +125,8 @@ function App() {
 							'Server bilan aloqa uzildi. Iltimos, sahifani yangilang.'
 						)
 					}
-				)
+				) // SockJS ulanish uzilganda (kutilmaganda)
 
-				// SockJS ulanish uzilganda (kutilmaganda)
 				socket.onclose = () => {
 					customLog('WebSocket aloqasi kutilmaganda uzildi.')
 					updateWebsocketStatus(false)
@@ -153,9 +140,8 @@ function App() {
 			}
 		},
 		[BACKEND_URL, customLog, updateWebsocketStatus]
-	)
+	) // O'yinchi ma'lumotlarini yuklash (HTTP fetch)
 
-	// O'yinchi ma'lumotlarini yuklash (HTTP fetch)
 	const fetchPlayerData = useCallback(
 		async chatId => {
 			setError(null)
@@ -211,9 +197,8 @@ function App() {
 			}
 		},
 		[BACKEND_URL, customLog]
-	)
+	) // O'zgarishni serverga yuborish (STOMP send)
 
-	// O'zgarishni serverga yuborish (STOMP send)
 	const sendUpdate = useCallback(() => {
 		const client = stompClientRef.current
 		const chatId = currentChatIdRef.current
@@ -252,11 +237,8 @@ function App() {
 			tgRef.current.HapticFeedback.notificationOccurred('error')
 			tgRef.current.showAlert("❌ Ma'lumotni yuborishda xatolik yuz berdi.")
 		}
-	}, [customLog, inputState, inputChooseId])
+	}, [customLog, inputState, inputChooseId]) // --- REACT LIFECYCLE HOOKLARI --- // 1. Telegram WebApp ni ishga tushirish va foydalanuvchi ma'lumotlarini olish
 
-	// --- REACT LIFECYCLE HOOKLARI ---
-
-	// 1. Telegram WebApp ni ishga tushirish va foydalanuvchi ma'lumotlarini olish
 	useEffect(() => {
 		const tg = tgRef.current
 		tg.ready()
@@ -276,14 +258,12 @@ function App() {
 			customLog('Telegram user data topilmadi.', 'error')
 			setLoading(false)
 		}
-	}, [customLog, fetchPlayerData]) // Bir marta ishga tushadi
+	}, [customLog, fetchPlayerData]) // Bir marta ishga tushadi // 2. Guruh ID mavjud bo'lsa WebSocket ga ulanish
 
-	// 2. Guruh ID mavjud bo'lsa WebSocket ga ulanish
 	useEffect(() => {
 		if (playerData?.groupId) {
-			connectSocket(playerData.groupId)
+			connectSocket(playerData.groupId) // Cleanup funksiyasi: komponent o'chirilganda yoki ID o'zgarganda WebSocket ni uzish
 
-			// Cleanup funksiyasi: komponent o'chirilganda yoki ID o'zgarganda WebSocket ni uzish
 			return () => {
 				const client = stompClientRef.current
 				if (client && client.connected) {
@@ -298,9 +278,7 @@ function App() {
 				stompClientRef.current = null
 			}
 		}
-	}, [playerData?.groupId, connectSocket, customLog])
-
-	// --- UI YORDAMCHI KOMPONENTLARI ---
+	}, [playerData?.groupId, connectSocket, customLog]) // --- UI YORDAMCHI KOMPONENTLARI ---
 
 	const StatusBadge = ({ state }) => {
 		const base =
@@ -314,100 +292,96 @@ function App() {
 				LOSE: 'bg-red-600',
 				WIN: 'bg-green-700',
 				default: 'bg-gray-500',
-			}[state] || classes.default
+			}[state] || 'bg-gray-500' // O'zgartirildi: classes.default o'rniga to'g'ridan-to'g'ri qiymat
 
 		return <span className={`${base} ${classes}`}>{state}</span>
-	}
+	} // --- RENDER QISMI --- // Telegram ranglari uchun uslublar (CSSni JSX ichiga kiritish)
 
-	// --- RENDER QISMI ---
-
-	// Telegram ranglari uchun uslublar (CSSni JSX ichiga kiritish)
 	const tgThemeCSS = `
-        :root {
-            --tg-bg-color: ${tgRef.current.themeParams.bg_color || '#f9fafb'};
-            --tg-text-color: ${tgRef.current.themeParams.text_color || '#222'};
-            --tg-hint-color: ${tgRef.current.themeParams.hint_color || '#999'};
-            --tg-button-color: ${
-							tgRef.current.themeParams.button_color || '#007BFF'
-						};
-            --tg-button-text-color: ${
-							tgRef.current.themeParams.button_text_color || '#ffffff'
-						};
-            --tg-secondary-bg-color: ${
-							tgRef.current.themeParams.secondary_bg_color || '#ffffff'
-						};
-            --tg-border-color: #e0e0e0;
-        }
+        :root {
+            --tg-bg-color: ${tgRef.current.themeParams.bg_color || '#f9fafb'};
+            --tg-text-color: ${tgRef.current.themeParams.text_color || '#222'};
+            --tg-hint-color: ${tgRef.current.themeParams.hint_color || '#999'};
+            --tg-button-color: ${
+		tgRef.current.themeParams.button_color || '#007BFF'
+	};
+            --tg-button-text-color: ${
+		tgRef.current.themeParams.button_text_color || '#ffffff'
+	};
+            --tg-secondary-bg-color: ${
+		tgRef.current.themeParams.secondary_bg_color || '#ffffff'
+	};
+            --tg-border-color: #e0e0e0;
+        }
 
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-            background-color: var(--tg-bg-color);
-            color: var(--tg-text-color);
-        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--tg-bg-color);
+            color: var(--tg-text-color);
+        }
 
-        .card {
-            background: var(--tg-secondary-bg-color);
-            border-radius: 12px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
-        }
+        .card {
+            background: var(--tg-secondary-bg-color);
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+        }
 
-        input, select, pre {
-            border: 1px solid var(--tg-border-color);
-            background: var(--tg-bg-color);
-            color: var(--tg-text-color);
-        }
+        input, select, pre {
+            border: 1px solid var(--tg-border-color);
+            background: var(--tg-bg-color);
+            color: var(--tg-text-color);
+        }
 
-        .btn {
-             background: var(--tg-button-color);
-             color: var(--tg-button-text-color);
-             transition: opacity 0.2s ease;
-        }
-        .btn:hover {
-            opacity: 0.85;
-        }
-        .btn:disabled {
-            background-color: var(--tg-hint-color);
-            cursor: not-allowed;
-        }
-        .status-WAITING { background: #f39c12; }
-        .status-READY { background: #2ecc71; }
-        .status-PLAYING { background: #3498db; }
-        .status-IN_GAME { background: #1abc9c; }
-        .status-LOSE { background: #e74c3c; }
-        .status-WIN { background: #008000; }
-        .log-error {
-            color: #c62828;
-            font-weight: bold;
-        }
-    `
+        .btn {
+             background: var(--tg-button-color);
+             color: var(--tg-button-text-color);
+             transition: opacity 0.2s ease;
+        }
+        .btn:hover {
+            opacity: 0.85;
+        }
+        .btn:disabled {
+            background-color: var(--tg-hint-color);
+            cursor: not-allowed;
+        }
+        .status-WAITING { background: #f39c12; }
+        .status-READY { background: #2ecc71; }
+        .status-PLAYING { background: #3498db; }
+        .status-IN_GAME { background: #1abc9c; }
+        .status-LOSE { background: #e74c3c; }
+        .status-WIN { background: #008000; }
+        .log-error {
+            color: #c62828;
+            font-weight: bold;
+        }
+    ` // Asosiy UI
 
-	// Asosiy UI
 	return (
 		<div className='p-4 flex flex-col gap-5 min-h-screen'>
-			<style>{tgThemeCSS}</style>
-
+			            <style>{tgThemeCSS}</style>           {' '}
 			<h1 className='text-xl font-bold text-center text-tg-text-color'>
-				🎮 O'yin Paneli (React)
+				                🎮 O'yin Paneli (React)            {' '}
 			</h1>
-
-			{/* Global holat xabarlari */}
+			            {/* Global holat xabarlari */}           {' '}
 			{(loading || error) && (
 				<div
 					className={`p-4 rounded-lg font-medium text-center ${
 						error ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'
 					}`}
 				>
-					{loading ? "⏳ O'yinchi ma'lumotlari yuklanmoqda..." : `❌ ${error}`}
+					                   {' '}
+					{loading ? "⏳ O'yinchi ma'lumotlari yuklanmoqda..." : `❌ ${error}`} 
+					             {' '}
 				</div>
 			)}
-
-			{/* O'yinchi Ma'lumotlari */}
+			            {/* O'yinchi Ma'lumotlari */}           {' '}
 			{playerData && (
 				<div id='playerCard' className='card p-4'>
+					                   {' '}
 					<h3 className='text-lg font-semibold border-b border-tg-border-color pb-2 mb-3'>
-						Sizning ma'lumotingiz
+						                        Sizning ma'lumotingiz                    {' '}
 					</h3>
-
+					                   {' '}
 					<div
 						id='websocketStatus'
 						className={`p-2 rounded-lg font-bold mb-3 text-sm text-center ${
@@ -416,55 +390,64 @@ function App() {
 								: 'websocket-disconnected bg-red-100 text-red-700'
 						}`}
 					>
-						WebSocket: {wsStatus ? 'Ulangan ✅' : 'Uzilgan ❌'}
+						                        WebSocket:{' '}
+						{wsStatus ? 'Ulangan ✅' : 'Uzilgan ❌'}                   {' '}
 					</div>
-
+					                   {' '}
 					<div id='playerInfo' className='text-sm'>
-						<strong>Chat ID:</strong> {playerData.chatId}
-						<br />
-						<strong>Group ID:</strong>{' '}
+						                        <strong>Chat ID:</strong>{' '}
+						{playerData.chatId}
+						                        <br />                       {' '}
+						<strong>Group ID:</strong>                        {' '}
 						{playerData.groupId ?? 'Guruhga qo‘shilmagan'}
-						<br />
-						<strong>Holati:</strong>{' '}
-						<StatusBadge state={playerData.playerState} />
+						                        <br />                       {' '}
+						<strong>Holati:</strong>                        {' '}
+						<StatusBadge state={playerData.playerState} />                   {' '}
 					</div>
+					               {' '}
 				</div>
 			)}
-
-			{/* O'yinni Boshqarish */}
+			            {/* O'yinni Boshqarish */}           {' '}
 			{playerData && (
 				<div id='editSection' className='card p-4'>
+					                   {' '}
 					<h3 className='text-lg font-semibold border-b border-tg-border-color pb-2 mb-3'>
-						O'yinni Boshqarish
+						                        O'yinni Boshqarish                    {' '}
 					</h3>
-
+					                   {' '}
 					<label
 						htmlFor='playerState'
 						className='block text-sm mb-1 mt-2 text-tg-hint-color'
 					>
-						Holatni o'zgartirish:
+						                        Holatni o'zgartirish:                    {' '}
 					</label>
+					                   {' '}
 					<select
 						id='playerState'
 						value={inputState}
 						onChange={e => setInputState(e.target.value)}
 						className='w-full p-3 rounded-lg text-base'
 					>
+						                       {' '}
 						{['WAITING', 'READY', 'PLAYING', 'IN_GAME', 'LOSE', 'WIN'].map(
 							state => (
 								<option key={state} value={state}>
-									{state}
+									                                    {state}                   
+									           {' '}
 								</option>
 							)
 						)}
+						                   {' '}
 					</select>
-
+					                   {' '}
 					<label
 						htmlFor='choosePlayerId'
 						className='block text-sm mb-1 mt-3 text-tg-hint-color'
 					>
-						O'yinchi ID'sini tanlash (ixtiyoriy):
+						                        O'yinchi ID'sini tanlash (ixtiyoriy):      
+						             {' '}
 					</label>
+					                   {' '}
 					<input
 						type='number'
 						id='choosePlayerId'
@@ -473,56 +456,66 @@ function App() {
 						onChange={e => setInputChooseId(e.target.value)}
 						className='w-full p-3 rounded-lg text-base'
 					/>
-
+					                   {' '}
 					<button
 						id='updateButton'
 						onClick={sendUpdate}
 						disabled={!wsStatus || !playerData.groupId}
 						className='btn w-full p-3 mt-4 rounded-lg font-bold'
 					>
-						✅ Serverga yuborish (
+						                        ✅ Serverga yuborish (                      
+						 {' '}
 						{!playerData.groupId
 							? 'Guruhsiz'
 							: wsStatus
 							? 'Ulangan'
 							: 'Uzilgan'}
-						)
+						                        )                    {' '}
 					</button>
+					               {' '}
 				</div>
 			)}
-
-			{/* Guruh holati (WebSocket real vaqtda) */}
+			            {/* Guruh holati (WebSocket real vaqtda) */}           {' '}
 			{playerData?.groupId && (
 				<div id='groupSection' className='card p-4'>
+					                   {' '}
 					<h3 className='text-lg font-semibold border-b border-tg-border-color pb-2 mb-3'>
-						Guruh holati (real vaqtda)
+						                        Guruh holati (real vaqtda)                  
+						 {' '}
 					</h3>
+					                   {' '}
 					<pre id='groupData' className='p-3 rounded-lg overflow-auto max-h-64'>
-						{groupData}
+						                        {groupData}                   {' '}
 					</pre>
+					               {' '}
 				</div>
 			)}
-
-			{/* Loglar */}
+			            {/* Loglar */}           {' '}
 			<div id='logSection' className='card p-4'>
+				               {' '}
 				<h3 className='text-lg font-semibold border-b border-tg-border-color pb-2 mb-3'>
-					Loglar va Xatolar
+					                    Loglar va Xatolar                {' '}
 				</h3>
+				               {' '}
 				<pre
 					id='logList'
 					ref={logListElRef}
 					className='p-3 rounded-lg max-h-64 overflow-y-scroll text-xs'
 				>
+					                   {' '}
 					{logList.map((log, index) => (
 						<div
 							key={index}
 							className={log.type === 'error' ? 'log-error' : ''}
 						>
-							{log.message}
+							                            {log.message}                       {' '}
 						</div>
 					))}
+					               {' '}
 				</pre>
+				           {' '}
 			</div>
+			       {' '}
 		</div>
 	)
 }
