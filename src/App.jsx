@@ -1,5 +1,6 @@
-import { LogOut, RefreshCw, Send, Zap } from 'lucide-react' // Lucide ikonalari estetikani oshirish uchun
 import { useCallback, useEffect, useRef, useState } from 'react'
+// Eslatma: 'lucide-react' kutubxonasiga bo'lgan bog'liqlik olib tashlandi,
+// Uning o'rniga inline SVG va Emoji (unicode) belgilari ishlatilmoqda.
 
 // --- MUHIM ESLATMA ---
 // Ushbu ilova global o'zgaruvchilar sifatida SockJS va Stomp kutubxonalarining mavjudligiga tayanadi.
@@ -9,8 +10,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 
 function App() {
 	// --- KONFIGURATSIYA (O'zgartirish kerak) ---
-	// Eslatma: Ngrok manzilini doimiy ravishda yangilab turishingiz kerak, chunki bepul reja har safar yangi manzil beradi.
-	// Hozirgi manzil oldingi logdagi manzilga o'zgartirildi.
+	// Ngrok manzilini doimiy ravishda yangilab turishingiz kerak!
 	const BACKEND_URL = 'https://adc574bf3a73.ngrok-free.app' // <--- BU MANZILNI YANGILASH SHART!
 
 	// --- HOLATNI BOSHQARISH (STATE MANAGEMENT) ---
@@ -237,7 +237,7 @@ function App() {
 				setPlayerData(data)
 				currentGroupIdRef.current = data.groupId
 				// inputStateni faqat yuklashda playerData.playerState ga o'rnatamiz
-				// WebSocket orqali kelgan yangilanishlar uni o'zgartiradi
+				// WebSocket orqali keladigan yangilanishlar uni o'zgartiradi
 				setInputState(data.playerState)
 
 				customLog(`O'yinchi ma'lumotlari yuklandi. Guruh ID: ${data.groupId}`)
@@ -394,6 +394,46 @@ function App() {
 		return <span className={`${base} ${classes}`}>{state}</span>
 	}
 
+	// Ikonani almashtirish funksiyasi (inline SVG)
+	const RefreshIcon = ({ className }) => (
+		<svg
+			xmlns='http://www.w3.org/2000/svg'
+			width='24'
+			height='24'
+			viewBox='0 0 24 24'
+			fill='none'
+			stroke='currentColor'
+			strokeWidth='2'
+			strokeLinecap='round'
+			strokeLinejoin='round'
+			className={className}
+		>
+			<path d='M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-7.3 3.3L3 9' />
+			<path d='M3 3v6h6' />
+			<path d='M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 7.3-3.3L21 15' />
+			<path d='M21 21v-6h-6' />
+		</svg>
+	)
+
+	// Ikona (inline SVG)
+	const SendIcon = ({ className }) => (
+		<svg
+			xmlns='http://www.w3.org/2000/svg'
+			width='24'
+			height='24'
+			viewBox='0 0 24 24'
+			fill='none'
+			stroke='currentColor'
+			strokeWidth='2'
+			strokeLinecap='round'
+			strokeLinejoin='round'
+			className={className}
+		>
+			<path d='m22 2-7 20-4-9-9-4Z' />
+			<path d='M22 2 11 13' />
+		</svg>
+	)
+
 	// --- RENDER QISMI ---
 
 	// Telegram ranglari uchun uslublar
@@ -502,7 +542,8 @@ function App() {
 				<div id='playerCard' className='card'>
 					<h3 className='text-lg font-semibold border-b border-tg-border-color pb-3 mb-4 flex justify-between items-center'>
 						Sizning ma'lumotingiz{' '}
-						<LogOut className='w-5 h-5 text-tg-hint-color' />
+						<span className='w-5 h-5 text-tg-hint-color'>🔗</span>{' '}
+						{/* LogOut o'rniga */}
 					</h3>
 
 					<div
@@ -513,7 +554,7 @@ function App() {
 								: 'bg-red-100 text-red-700'
 						}`}
 					>
-						<Zap className='inline w-4 h-4 mr-1 mb-0.5' />
+						<span className='inline w-4 h-4 mr-1 mb-0.5'>🔥</span>
 						WebSocket: {wsStatus ? 'Ulangan ✅' : 'Uzilgan ❌'}
 					</div>
 
@@ -582,7 +623,7 @@ function App() {
 						disabled={!wsStatus || !playerData.groupId}
 						className='btn w-full p-3 mt-5 shadow-lg flex items-center justify-center'
 					>
-						<Send className='w-5 h-5 mr-2' />
+						<SendIcon className='w-5 h-5 mr-2' /> {/* Send o'rniga */}
 						Serverga yuborish (
 						{!playerData.groupId
 							? 'Guruhsiz'
@@ -599,7 +640,8 @@ function App() {
 				<div id='groupSection' className='card'>
 					<h3 className='text-lg font-semibold border-b border-tg-border-color pb-3 mb-4 flex justify-between items-center'>
 						Guruh holati (real vaqtda){' '}
-						<Zap className='w-5 h-5 text-green-500' />
+						<span className='w-5 h-5 text-green-500'>⚡️</span>{' '}
+						{/* Zap o'rniga */}
 					</h3>
 
 					<pre
@@ -614,7 +656,9 @@ function App() {
 			{/* Loglar */}
 			<div id='logSection' className='card'>
 				<h3 className='text-lg font-semibold border-b border-tg-border-color pb-3 mb-4 flex justify-between items-center'>
-					Loglar va Xatolar <RefreshCw className='w-4 h-4 text-tg-hint-color' />
+					Loglar va Xatolar{' '}
+					<RefreshIcon className='w-4 h-4 text-tg-hint-color' />{' '}
+					{/* RefreshCw o'rniga */}
 				</h3>
 
 				<pre
