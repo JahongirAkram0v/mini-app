@@ -108,6 +108,7 @@ function App() {
 			}
 
 			try {
+				const BACKEND_URL = BACKEND_URL.replace('https://', 'ws://')
 				const socket = new window.SockJS(`${BACKEND_URL}/ws`)
 				const client = window.Stomp.over(socket)
 				client.debug = null // Debug loglarini o'chirish
