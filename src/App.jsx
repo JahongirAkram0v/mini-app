@@ -1,6 +1,4 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-// Eslatma: 'lucide-react' kutubxonasiga bo'lgan bog'liqlik olib tashlandi,
-// Uning o'rniga inline SVG va Emoji (unicode) belgilari ishlatilmoqda.
 
 // --- MUHIM ESLATMA ---
 // Ushbu ilova global o'zgaruvchilar sifatida SockJS va Stomp kutubxonalarining mavjudligiga tayanadi.
@@ -22,12 +20,12 @@ function App() {
 	const [groupData, setGroupData] = useState('Ulanish kutilmoqda...')
 	const [inputState, setInputState] = useState('WAITING')
 	const [inputChooseId, setInputChooseId] = useState('')
+	const [manualChatId, setManualChatId] = useState('')
 
 	// --- MUTABLE O'ZGARUVCHILAR (useRef) ---
 	const stompClientRef = useRef(null)
 	const currentChatIdRef = useRef(null)
 	const currentGroupIdRef = useRef(null)
-	// TWA obyekti mavjudligini tekshirish
 	const tgRef = useRef(
 		window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null
 	)
@@ -35,7 +33,6 @@ function App() {
 
 	// --- YORDAMCHI FUNKSIYALAR ---
 
-	// Konsol loglari o'rniga ishlatiladigan funksiya
 	const customLog = useCallback((message, type = 'log') => {
 		const timestamp = new Date().toLocaleTimeString('en-US', { hour12: false })
 		const logMessage = `[${timestamp}] ${message}`
@@ -52,7 +49,6 @@ function App() {
 		}
 	}, [])
 
-	// WebSocket holatini yangilash
 	const updateWebsocketStatus = useCallback(
 		isConnected => {
 			setWsStatus(isConnected)
@@ -65,10 +61,8 @@ function App() {
 		[customLog]
 	)
 
-	// Maksimal qayta urinishlar soni
 	const MAX_RETRIES = 5
 
-	// Eslatma: Ushbu funksiya React componentingizda 'useCallback' ichida joylashgan bo'lishi kerak.
 	const connectSocket = useCallback(
 		(groupId, retryCount = 0) => {
 			if (!groupId) {
@@ -102,14 +96,10 @@ function App() {
 			}
 
 			try {
-				// 💡 TUZATISH: Endi BACKEND_URL ni to'g'ridan-to'g'ri ishlatamiz.
-				// Ngrok manzili HTTPS bo'lishi shart. SockJS buni WSS ga o'zi o'zgartiradi.
 				const sockjsEndpoint = `${BACKEND_URL}/ws`
 				customLog(`SockJS uchun yakuniy manzil: ${sockjsEndpoint}`, 'log')
 
-				// Oldingi 'Cannot access z' xatosini tuzatish uchun transportlarni cheklaymiz.
 				const socket = new window.SockJS(sockjsEndpoint, null, {
-					// Faqat ishonchli transportlarni qoldiramiz
 					transports: ['websocket', 'xhr-streaming', 'xhr-polling'],
 				})
 
@@ -119,21 +109,18 @@ function App() {
 				client.connect(
 					{},
 					() => {
-						// Muvaffaqiyatli ulansa
 						stompClientRef.current = client
 						updateWebsocketStatus(true)
 						customLog(
 							`Serverga muvaffaqiyatli ulangan (Qayta urinish soni: ${retryCount})`
 						)
 
-						// Obuna bo'lish logikasi...
 						client.subscribe(`/topic/room/${groupId}`, message => {
 							customLog(`Yangi xabar keldi: ${message.body}`, 'log')
 							try {
 								const data = JSON.parse(message.body)
 								setGroupData(JSON.stringify(data, null, 2))
 
-								// Agar o'yinchi ma'lumotlari yangilansa, ularni ham yangilaymiz
 								if (data.players && Array.isArray(data.players)) {
 									const updatedPlayer = data.players.find(
 										p => p.chatId === currentChatIdRef.current
@@ -157,14 +144,12 @@ function App() {
 						})
 					},
 					error => {
-						// ❌ Ulanishda xatolik bo'lsa
 						customLog(
 							`WebSocket ulanishda xatolik: ${error.message || error}`,
 							'error'
 						)
 						updateWebsocketStatus(false)
 
-						// Qayta urinish logikasi
 						if (retryCount < MAX_RETRIES) {
 							const nextRetryCount = retryCount + 1
 							const delay = 2000 * Math.pow(2, retryCount)
@@ -190,11 +175,9 @@ function App() {
 					}
 				)
 
-				// SockJS ulanish uzilganda (kutilmaganda)
 				socket.onclose = () => {
 					customLog('WebSocket aloqasi kutilmaganda uzildi.')
 					updateWebsocketStatus(false)
-					// Avtomatik qayta ulanishni boshlash
 					connectSocket(groupId, 0)
 				}
 			} catch (e) {
@@ -205,18 +188,18 @@ function App() {
 				updateWebsocketStatus(false)
 			}
 		},
-		// Dependency listdagi barcha o'zgaruvchilarni kiritishni unutmang
-		[BACKEND_URL, customLog, updateWebsocketStatus, setGroupData, setError]
+		[BACKEND_URL, customLog, updateWebsocketStatus]
 	)
 
-	// O'yinchi ma'lumotlarini yuklash (HTTP fetch)
 	const fetchPlayerData = useCallback(
 		async chatId => {
 			setError(null)
 			setLoading(true)
 
 			if (!chatId) {
-				setError('Xato: Chat ID mavjud emas. Ilovani Telegram orqali oching.')
+				setError(
+					'Xato: Chat ID mavjud emas. Ilovani Telegram orqali oching yoki ID kiriting.'
+				)
 				setLoading(false)
 				return
 			}
@@ -226,7 +209,6 @@ function App() {
 			)
 
 			try {
-				// Ngrok ogohlantirishini o'tkazib yuborish uchun maxsus sarlavha qo'shildi!
 				const response = await fetch(`${BACKEND_URL}/player/${chatId}`, {
 					headers: {
 						'ngrok-skip-browser-warning': '69420',
@@ -246,10 +228,6 @@ function App() {
 						)}`
 					} catch {
 						errorDetails = `Server xatosi (${status}): Kutilmagan javob formati.`
-						console.error(
-							'Serverdan kelgan kutilmagan javob:',
-							await response.text()
-						)
 					}
 					throw new Error(errorDetails)
 				}
@@ -257,10 +235,7 @@ function App() {
 				const data = await response.json()
 				setPlayerData(data)
 				currentGroupIdRef.current = data.groupId
-				// inputStateni faqat yuklashda playerData.playerState ga o'rnatamiz
-				// WebSocket orqali keladigan yangilanishlar uni o'zgartiradi
 				setInputState(data.playerState)
-
 				customLog(`O'yinchi ma'lumotlari yuklandi. Guruh ID: ${data.groupId}`)
 			} catch (err) {
 				let errorMessage = err.message.includes('Failed to fetch')
@@ -278,7 +253,6 @@ function App() {
 		[BACKEND_URL, customLog]
 	)
 
-	// O'zgarishni serverga yuborish (STOMP send)
 	const sendUpdate = useCallback(() => {
 		const client = stompClientRef.current
 		const chatId = currentChatIdRef.current
@@ -318,8 +292,6 @@ function App() {
 		try {
 			client.send('/app/game.send', {}, JSON.stringify(payload))
 			tg?.HapticFeedback.notificationOccurred('success')
-			// Foydalanuvchi tanlagan holatni UI da yangilash uchun setPlayerData ni chaqirishning hojati yo'q.
-			// WebSocket orqali keladigan real-time ma'lumot buni qiladi.
 			customLog("Ma'lumot muvaffaqiyatli yuborildi.")
 		} catch (e) {
 			customLog(`STOMP xabarini yuborishda xatolik: ${e.message}`, 'error')
@@ -328,18 +300,29 @@ function App() {
 		}
 	}, [customLog, inputState, inputChooseId])
 
+	const handleManualConnect = useCallback(() => {
+		const trimmedId = manualChatId.trim()
+		if (!trimmedId) {
+			setError('Iltimos, test uchun Chat ID kiriting.')
+			customLog('Manual ulanishda xato: Chat ID kiritilmagan.', 'error')
+			return
+		}
+		const numericId = parseInt(trimmedId, 10)
+		currentChatIdRef.current = numericId
+		fetchPlayerData(numericId)
+	}, [manualChatId, customLog, fetchPlayerData])
+
 	// --- REACT LIFECYCLE HOOKLARI ---
 
-	// 1. Telegram WebApp ni ishga tushirish va foydalanuvchi ma'lumotlarini olish
 	useEffect(() => {
 		const tg = tgRef.current
 
 		if (!tg) {
-			setError(
-				'Xato: Telegram Web App obyekti (window.Telegram.WebApp) topilmadi. Ilovani faqat Telegram orqali oching.'
+			customLog(
+				'Telegram Web App obyekti topilmadi. Manual ID kiritish rejimiga o`tildi.',
+				'log'
 			)
 			setLoading(false)
-			customLog('Telegram Web App obyekti topilmadi.', 'error')
 			return
 		}
 
@@ -348,7 +331,6 @@ function App() {
 		customLog('Telegram Web App tayyorlandi va kengaytirildi.')
 
 		const user = tg.initDataUnsafe?.user
-		// User ID ni olish
 		const userId = user?.id
 
 		if (userId) {
@@ -364,15 +346,13 @@ function App() {
 			customLog('Telegram user data topilmadi.', 'error')
 			setLoading(false)
 		}
-	}, [customLog, fetchPlayerData]) // Bir marta ishga tushadi
+	}, [customLog, fetchPlayerData])
 
-	// 2. Guruh ID mavjud bo'lsa WebSocket ga ulanish
 	useEffect(() => {
 		if (playerData?.groupId && !stompClientRef.current) {
 			connectSocket(playerData.groupId)
 		}
 
-		// Cleanup funksiyasi: komponent o'chirilganda yoki ID o'zgarganda WebSocket ni uzish
 		return () => {
 			const client = stompClientRef.current
 			if (client && client.connected) {
@@ -388,7 +368,6 @@ function App() {
 		}
 	}, [playerData?.groupId, connectSocket, customLog])
 
-	// Loglar yangilanganda avtomatik pastga skroll qilish
 	useEffect(() => {
 		if (logListElRef.current) {
 			logListElRef.current.scrollTop = logListElRef.current.scrollHeight
@@ -397,7 +376,6 @@ function App() {
 
 	// --- UI YORDAMCHI KOMPONENTLARI ---
 
-	// Holat uchun rangli yorliq
 	const StatusBadge = ({ state }) => {
 		const base =
 			'inline-block py-1 px-3 rounded-full text-white font-medium text-xs shadow-md'
@@ -415,7 +393,6 @@ function App() {
 		return <span className={`${base} ${classes}`}>{state}</span>
 	}
 
-	// Ikonani almashtirish funksiyasi (inline SVG)
 	const RefreshIcon = ({ className }) => (
 		<svg
 			xmlns='http://www.w3.org/2000/svg'
@@ -436,7 +413,6 @@ function App() {
 		</svg>
 	)
 
-	// Ikona (inline SVG)
 	const SendIcon = ({ className }) => (
 		<svg
 			xmlns='http://www.w3.org/2000/svg'
@@ -457,7 +433,6 @@ function App() {
 
 	// --- RENDER QISMI ---
 
-	// Telegram ranglari uchun uslublar
 	const tgThemeCSS = `
         :root {
             --tg-bg-color: ${tgRef.current?.themeParams?.bg_color || '#f9fafb'};
@@ -516,13 +491,11 @@ function App() {
         }
         .btn:hover:not(:disabled) {
             opacity: 0.9;
-            box-shadow: 0 4px 8px rgba(var(--tg-button-color-rgb-r, 0), var(--tg-button-color-rgb-g, 123), var(--tg-button-color-rgb-b, 255), 0.3);
         }
         .btn:disabled {
-            background-color: var(--tg-hint-color);
-            cursor: not-allowed;
-            opacity: 0.7;
-            box-shadow: none;
+             background-color: var(--tg-hint-color);
+             cursor: not-allowed;
+             opacity: 0.7;
         }
         
         /* Holat ranglari uchun sinflar */
@@ -558,13 +531,39 @@ function App() {
 				</div>
 			)}
 
+			{/* Manual ID kiritish bloki (agar Telegramda bo'lmasa) */}
+			{!playerData && !loading && !tgRef.current && (
+				<div id='manualConnectCard' className='card'>
+					<h3 className='text-lg font-semibold border-b border-tg-border-color pb-3 mb-4'>
+						Manual Ulanish (Test uchun)
+					</h3>
+					<p className='text-sm text-tg-hint-color mb-3'>
+						Ilova Telegram'dan tashqarida ishga tushirildi. Iltimos, test uchun
+						foydalanuvchi Chat ID'sini kiriting.
+					</p>
+					<div className='flex flex-col sm:flex-row gap-2'>
+						<input
+							type='number'
+							placeholder='Chat ID kiriting...'
+							value={manualChatId}
+							onChange={e => setManualChatId(e.target.value)}
+							className='flex-grow p-3 text-base focus:border-tg-link-color focus:ring-1 focus:ring-tg-link-color w-full'
+						/>
+						<button
+							onClick={handleManualConnect}
+							className='btn p-3 w-full sm:w-auto'
+						>
+							Ulanish
+						</button>
+					</div>
+				</div>
+			)}
+
 			{/* O'yinchi Ma'lumotlari */}
 			{playerData && (
 				<div id='playerCard' className='card'>
 					<h3 className='text-lg font-semibold border-b border-tg-border-color pb-3 mb-4 flex justify-between items-center'>
-						Sizning ma'lumotingiz{' '}
-						<span className='w-5 h-5 text-tg-hint-color'>🔗</span>{' '}
-						{/* LogOut o'rniga */}
+						Sizning ma'lumotingiz
 					</h3>
 
 					<div
@@ -575,8 +574,11 @@ function App() {
 								: 'bg-red-100 text-red-700'
 						}`}
 					>
-						<span className='inline w-4 h-4 mr-1 mb-0.5'>🔥</span>
-						WebSocket: {wsStatus ? 'Ulangan ✅' : 'Uzilgan ❌'}
+						<span
+							className='inline-block w-2 h-2 mr-2 rounded-full animate-pulse'
+							style={{ backgroundColor: wsStatus ? '#2ecc71' : '#e74c3c' }}
+						></span>
+						WebSocket: {wsStatus ? 'Ulangan' : 'Uzilgan'}
 					</div>
 
 					<div id='playerInfo' className='text-sm leading-relaxed'>
@@ -644,14 +646,8 @@ function App() {
 						disabled={!wsStatus || !playerData.groupId}
 						className='btn w-full p-3 mt-5 shadow-lg flex items-center justify-center'
 					>
-						<SendIcon className='w-5 h-5 mr-2' /> {/* Send o'rniga */}
-						Serverga yuborish (
-						{!playerData.groupId
-							? 'Guruhsiz'
-							: wsStatus
-							? 'Ulangan'
-							: 'Uzilgan'}
-						)
+						<SendIcon className='w-5 h-5 mr-2' />
+						Serverga yuborish
 					</button>
 				</div>
 			)}
@@ -660,9 +656,8 @@ function App() {
 			{playerData?.groupId && (
 				<div id='groupSection' className='card'>
 					<h3 className='text-lg font-semibold border-b border-tg-border-color pb-3 mb-4 flex justify-between items-center'>
-						Guruh holati (real vaqtda){' '}
-						<span className='w-5 h-5 text-green-500'>⚡️</span>{' '}
-						{/* Zap o'rniga */}
+						Guruh holati (real vaqtda)
+						<span className='text-green-500'>⚡️</span>
 					</h3>
 
 					<pre
@@ -677,9 +672,8 @@ function App() {
 			{/* Loglar */}
 			<div id='logSection' className='card'>
 				<h3 className='text-lg font-semibold border-b border-tg-border-color pb-3 mb-4 flex justify-between items-center'>
-					Loglar va Xatolar{' '}
-					<RefreshIcon className='w-4 h-4 text-tg-hint-color' />{' '}
-					{/* RefreshCw o'rniga */}
+					Loglar va Xatolar
+					<RefreshIcon className='w-4 h-4 text-tg-hint-color' />
 				</h3>
 
 				<pre
