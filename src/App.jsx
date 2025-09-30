@@ -65,25 +65,10 @@ function App() {
 		[customLog]
 	)
 
-	const MAX_RETRIES = 5 // Maksimal qayta ulanish urinishlari soni
+	// Maksimal qayta urinishlar soni
+	const MAX_RETRIES = 5
 
-	// WebSocket ulanishi mantig'i
-	/**
-	 * BACKEND_URL (HTTPS) ni SockJS uchun WSS ga aylantiruvchi yordamchi funksiya.
-	 * (Bu funksiyani React hookdan tashqarida e'lon qiling)
-	 */
-	const getWebSocketUrl = httpUrl => {
-		// Agar Ngrok manzilidan foydalanilsa, 'https' ni 'wss' ga almashtiramiz
-		if (httpUrl.startsWith('https://')) {
-			return httpUrl.replace('https://', 'wss://')
-		}
-		// Agar HTTP bo'lsa (faqat localhost uchun), 'ws' dan foydalanamiz
-		if (httpUrl.startsWith('http://')) {
-			return httpUrl.replace('http://', 'ws://')
-		}
-		return httpUrl // Boshqa holatlar
-	}
-
+	// Eslatma: Ushbu funksiya React componentingizda 'useCallback' ichida joylashgan bo'lishi kerak.
 	const connectSocket = useCallback(
 		(groupId, retryCount = 0) => {
 			if (!groupId) {
@@ -99,8 +84,6 @@ function App() {
 				return
 			}
 
-			// ... (Qayta urinish logikasi) ...
-
 			customLog(
 				`Guruh ID (${groupId}) uchun WebSocket ulanishga urinilmoqda...`
 			)
@@ -114,42 +97,64 @@ function App() {
 				typeof window.Stomp === 'undefined'
 			) {
 				customLog('❌ SockJS yoki Stomp kutubxonalari topilmadi.', 'error')
-				setError('Xato: WebSocket kutubxonalari (SockJS/Stomp) yuklanmagan.')
+				setError('Xato: WebSocket kutubxonalari yuklanmagan.')
 				return
 			}
 
 			try {
-				const baseUrl = getWebSocketUrl(BACKEND_URL)
-				customLog(
-					`SockJS ulanish uchun tayyorlangan manzil: ${baseUrl}/ws`,
-					'log'
-				)
+				// 💡 TUZATISH: Endi BACKEND_URL ni to'g'ridan-to'g'ri ishlatamiz.
+				// Ngrok manzili HTTPS bo'lishi shart. SockJS buni WSS ga o'zi o'zgartiradi.
+				const sockjsEndpoint = `${BACKEND_URL}/ws`
+				customLog(`SockJS uchun yakuniy manzil: ${sockjsEndpoint}`, 'log')
 
-				// 💡 MUAMMONI HAL QILISH: Transports cheklanmoqda
-				// Faqat 'websocket' va standart XHR transportlari qoldirilmoqda.
-				const socket = new window.SockJS(`${baseUrl}/ws`, null, {
-					// Ushbu qator 'Cannot access z' xatosini tuzatishi kerak
+				// Oldingi 'Cannot access z' xatosini tuzatish uchun transportlarni cheklaymiz.
+				const socket = new window.SockJS(sockjsEndpoint, null, {
+					// Faqat ishonchli transportlarni qoldiramiz
 					transports: ['websocket', 'xhr-streaming', 'xhr-polling'],
 				})
 
 				const client = window.Stomp.over(socket)
-				client.debug = null // Debug loglarini o'chirish
+				client.debug = null
 
-				// ... (client.connect va boshqa logikalar avvalgidek qoladi) ...
 				client.connect(
 					{},
 					() => {
 						// Muvaffaqiyatli ulansa
 						stompClientRef.current = client
 						updateWebsocketStatus(true)
-						// ... (Obuna bo'lish logikasi) ...
+						customLog(
+							`Serverga muvaffaqiyatli ulangan (Qayta urinish soni: ${retryCount})`
+						)
 
-						// SockJS ulanish uzilganda (kutilmaganda)
-						socket.onclose = () => {
-							customLog('WebSocket aloqasi kutilmaganda uzildi.')
-							updateWebsocketStatus(false)
-							// ... (Avtomatik qayta ulanishga urinish logikasi) ...
-						}
+						// Obuna bo'lish logikasi...
+						client.subscribe(`/topic/room/${groupId}`, message => {
+							customLog(`Yangi xabar keldi: ${message.body}`, 'log')
+							try {
+								const data = JSON.parse(message.body)
+								setGroupData(JSON.stringify(data, null, 2))
+
+								// Agar o'yinchi ma'lumotlari yangilansa, ularni ham yangilaymiz
+								if (data.players && Array.isArray(data.players)) {
+									const updatedPlayer = data.players.find(
+										p => p.chatId === currentChatIdRef.current
+									)
+									if (updatedPlayer) {
+										setPlayerData(prevData => ({
+											...prevData,
+											playerState: updatedPlayer.playerState,
+										}))
+										customLog(
+											`Sizning holatingiz yangilandi: ${updatedPlayer.playerState}`
+										)
+									}
+								}
+							} catch (e) {
+								customLog(
+									`Xabarni qayta ishlashda xatolik: ${e.message}`,
+									'error'
+								)
+							}
+						})
 					},
 					error => {
 						// ❌ Ulanishda xatolik bo'lsa
@@ -159,12 +164,9 @@ function App() {
 						)
 						updateWebsocketStatus(false)
 
-						// ===============================================
-						// 💡 YANGI QAYTA URINISH LOGIKASI (retryCount ishlatilmoqda)
-						// ===============================================
+						// Qayta urinish logikasi
 						if (retryCount < MAX_RETRIES) {
 							const nextRetryCount = retryCount + 1
-							// Eksponensial orqaga chekinish: 2s, 4s, 8s, 16s, 32s
 							const delay = 2000 * Math.pow(2, retryCount)
 
 							customLog(
@@ -174,7 +176,6 @@ function App() {
 							)
 
 							setTimeout(() => {
-								// Funksiyani yangi retryCount bilan qayta chaqirish
 								connectSocket(groupId, nextRetryCount)
 							}, delay)
 						} else {
@@ -188,6 +189,14 @@ function App() {
 						}
 					}
 				)
+
+				// SockJS ulanish uzilganda (kutilmaganda)
+				socket.onclose = () => {
+					customLog('WebSocket aloqasi kutilmaganda uzildi.')
+					updateWebsocketStatus(false)
+					// Avtomatik qayta ulanishni boshlash
+					connectSocket(groupId, 0)
+				}
 			} catch (e) {
 				customLog(
 					`WebSocket ulanishni yaratishda xatolik: ${e.message}`,
@@ -196,7 +205,8 @@ function App() {
 				updateWebsocketStatus(false)
 			}
 		},
-		[BACKEND_URL, customLog, updateWebsocketStatus, setGroupData] // Qaramliklar ro'yxatini to'liq qiling
+		// Dependency listdagi barcha o'zgaruvchilarni kiritishni unutmang
+		[BACKEND_URL, customLog, updateWebsocketStatus, setGroupData, setError]
 	)
 
 	// O'yinchi ma'lumotlarini yuklash (HTTP fetch)
