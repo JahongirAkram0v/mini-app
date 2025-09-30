@@ -9,8 +9,9 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 
 function App() {
 	// --- KONFIGURATSIYA (O'zgartirish kerak) ---
-	// Ngrok manzilini doimiy ravishda yangilab turishingiz kerak!
-	const BACKEND_URL = 'https://adc574bf3a73.ngrok-free.app' // <--- YANGILASH KERAK
+	// Eslatma: Ngrok manzilini doimiy ravishda yangilab turishingiz kerak, chunki bepul reja har safar yangi manzil beradi.
+	// Hozirgi manzil oldingi logdagi manzilga o'zgartirildi.
+	const BACKEND_URL = 'https://adc574bf3a73.ngrok-free.app' // <--- BU MANZILNI YANGILASH SHART!
 
 	// --- HOLATNI BOSHQARISH (STATE MANAGEMENT) ---
 	const [playerData, setPlayerData] = useState(null)
