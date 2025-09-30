@@ -13,7 +13,7 @@ function App() {
 
 	// --- HOLATNI BOSHQARISH (STATE MANAGEMENT) ---
 	const [playerData, setPlayerData] = useState(null)
-	const [loading, setLoading] = useState(true)
+	const [loading, setLoading] = useState(false) // Boshlang'ich holatda yuklanmaydi
 	const [error, setError] = useState(null)
 	const [logList, setLogList] = useState([])
 	const [wsStatus, setWsStatus] = useState(false) // WebSocket ulanish holati
@@ -26,9 +26,6 @@ function App() {
 	const stompClientRef = useRef(null)
 	const currentChatIdRef = useRef(null)
 	const currentGroupIdRef = useRef(null)
-	const tgRef = useRef(
-		window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null
-	)
 	const logListElRef = useRef(null) // Loglar uchun elementga murojaat
 
 	// --- YORDAMCHI FUNKSIYALAR ---
@@ -48,6 +45,9 @@ function App() {
 			console.log(logMessage)
 		}
 	}, [])
+
+	// Boshqa yordamchi funksiyalar (o'zgarishsiz qoladi) ...
+	// ... updateWebsocketStatus, connectSocket, fetchPlayerData, sendUpdate ...
 
 	const updateWebsocketStatus = useCallback(
 		isConnected => {
@@ -197,9 +197,7 @@ function App() {
 			setLoading(true)
 
 			if (!chatId) {
-				setError(
-					'Xato: Chat ID mavjud emas. Ilovani Telegram orqali oching yoki ID kiriting.'
-				)
+				setError('Xato: Chat ID mavjud emas. Iltimos, ID kiriting.')
 				setLoading(false)
 				return
 			}
@@ -257,11 +255,9 @@ function App() {
 		const client = stompClientRef.current
 		const chatId = currentChatIdRef.current
 		const groupId = currentGroupIdRef.current
-		const tg = tgRef.current
 
 		if (!client || !client.connected) {
-			tg?.HapticFeedback.notificationOccurred('error')
-			tg?.showAlert(
+			alert(
 				"❌ Server bilan aloqa yo'q (WebSocket uzilgan). Iltimos, qayta ulanishni kuting."
 			)
 			customLog("Ma'lumot yuborish rad etildi: WebSocket uzilgan.", 'error')
@@ -269,8 +265,7 @@ function App() {
 		}
 
 		if (!chatId || !groupId) {
-			tg?.HapticFeedback.notificationOccurred('error')
-			tg?.showAlert('❌ Chat ID yoki Guruh ID mavjud emas. Yuklashni kuting.')
+			alert('❌ Chat ID yoki Guruh ID mavjud emas. Yuklashni kuting.')
 			customLog("Ma'lumot yuborish rad etildi: IDlar mavjud emas.", 'error')
 			return
 		}
@@ -291,20 +286,18 @@ function App() {
 
 		try {
 			client.send('/app/game.send', {}, JSON.stringify(payload))
-			tg?.HapticFeedback.notificationOccurred('success')
 			customLog("Ma'lumot muvaffaqiyatli yuborildi.")
 		} catch (e) {
 			customLog(`STOMP xabarini yuborishda xatolik: ${e.message}`, 'error')
-			tg?.HapticFeedback.notificationOccurred('error')
-			tg?.showAlert("❌ Ma'lumotni yuborishda xatolik yuz berdi.")
+			alert("❌ Ma'lumotni yuborishda xatolik yuz berdi.")
 		}
 	}, [customLog, inputState, inputChooseId])
 
-	const handleManualConnect = useCallback(() => {
+	const handleConnect = useCallback(() => {
 		const trimmedId = manualChatId.trim()
 		if (!trimmedId) {
 			setError('Iltimos, test uchun Chat ID kiriting.')
-			customLog('Manual ulanishda xato: Chat ID kiritilmagan.', 'error')
+			customLog('Ulanishda xato: Chat ID kiritilmagan.', 'error')
 			return
 		}
 		const numericId = parseInt(trimmedId, 10)
@@ -314,39 +307,7 @@ function App() {
 
 	// --- REACT LIFECYCLE HOOKLARI ---
 
-	useEffect(() => {
-		const tg = tgRef.current
-
-		if (!tg) {
-			customLog(
-				'Telegram Web App obyekti topilmadi. Manual ID kiritish rejimiga o`tildi.',
-				'log'
-			)
-			setLoading(false)
-			return
-		}
-
-		tg.ready()
-		tg.expand()
-		customLog('Telegram Web App tayyorlandi va kengaytirildi.')
-
-		const user = tg.initDataUnsafe?.user
-		const userId = user?.id
-
-		if (userId) {
-			currentChatIdRef.current = userId
-			customLog(
-				`Foydalanuvchi ID (Chat ID) muvaffaqiyatli olindi: ${currentChatIdRef.current}`
-			)
-			fetchPlayerData(userId)
-		} else {
-			setError(
-				"Xatolik: Foydalanuvchi ma'lumotlari topilmadi. Ilovani Telegram orqali oching."
-			)
-			customLog('Telegram user data topilmadi.', 'error')
-			setLoading(false)
-		}
-	}, [customLog, fetchPlayerData])
+	// Telegram bilan bog'liq useEffect olib tashlandi
 
 	useEffect(() => {
 		if (playerData?.groupId && !stompClientRef.current) {
@@ -374,8 +335,8 @@ function App() {
 		}
 	}, [logList])
 
-	// --- UI YORDAMCHI KOMPONENTLARI ---
-
+	// --- UI YORDAMCHI KOMPONENTLARI (o'zgarishsiz) ---
+	// ... StatusBadge, RefreshIcon, SendIcon ...
 	const StatusBadge = ({ state }) => {
 		const base =
 			'inline-block py-1 px-3 rounded-full text-white font-medium text-xs shadow-md'
@@ -435,25 +396,13 @@ function App() {
 
 	const tgThemeCSS = `
         :root {
-            --tg-bg-color: ${tgRef.current?.themeParams?.bg_color || '#f9fafb'};
-            --tg-text-color: ${
-							tgRef.current?.themeParams?.text_color || '#1c1c1c'
-						};
-            --tg-hint-color: ${
-							tgRef.current?.themeParams?.hint_color || '#999'
-						};
-            --tg-button-color: ${
-							tgRef.current?.themeParams?.button_color || '#007BFF'
-						};
-            --tg-button-text-color: ${
-							tgRef.current?.themeParams?.button_text_color || '#ffffff'
-						};
-            --tg-secondary-bg-color: ${
-							tgRef.current?.themeParams?.secondary_bg_color || '#ffffff'
-						};
-            --tg-link-color: ${
-							tgRef.current?.themeParams?.link_color || '#3390ec'
-						};
+            --tg-bg-color: #f9fafb;
+            --tg-text-color: #1c1c1c;
+            --tg-hint-color: #999;
+            --tg-button-color: #007BFF;
+            --tg-button-text-color: #ffffff;
+            --tg-secondary-bg-color: #ffffff;
+            --tg-link-color: #3390ec;
             --tg-border-color: rgba(0,0,0,0.1);
         }
 
@@ -462,54 +411,20 @@ function App() {
             background-color: var(--tg-bg-color);
             color: var(--tg-text-color);
         }
-
-        .card {
-            background: var(--tg-secondary-bg-color);
-            border-radius: 12px;
-            padding: 1rem;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
-        }
-
-        input, select, pre {
-            border: 1px solid var(--tg-hint-color);
-            background: var(--tg-bg-color);
-            color: var(--tg-text-color);
-            border-radius: 8px;
-        }
-
-        pre {
-            background-color: var(--tg-bg-color);
-            border: 1px solid var(--tg-border-color);
-        }
-        
-        .btn {
-             background: var(--tg-button-color);
-             color: var(--tg-button-text-color);
-             transition: all 0.2s ease;
-             border-radius: 8px;
-             font-weight: 600;
-        }
-        .btn:hover:not(:disabled) {
-            opacity: 0.9;
-        }
-        .btn:disabled {
-             background-color: var(--tg-hint-color);
-             cursor: not-allowed;
-             opacity: 0.7;
-        }
-        
-        /* Holat ranglari uchun sinflar */
+        /* Boshqa stillar o'zgarishsiz qoladi */
+        .card { background: var(--tg-secondary-bg-color); border-radius: 12px; padding: 1rem; box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+        input, select, pre { border: 1px solid var(--tg-hint-color); background: var(--tg-bg-color); color: var(--tg-text-color); border-radius: 8px; }
+        pre { background-color: var(--tg-bg-color); border: 1px solid var(--tg-border-color); }
+        .btn { background: var(--tg-button-color); color: var(--tg-button-text-color); transition: all 0.2s ease; border-radius: 8px; font-weight: 600; }
+        .btn:hover:not(:disabled) { opacity: 0.9; }
+        .btn:disabled { background-color: var(--tg-hint-color); cursor: not-allowed; opacity: 0.7; }
         .status-WAITING { background-color: #f39c12; }
         .status-READY { background-color: #2ecc71; }
         .status-PLAYING { background-color: #3498db; }
         .status-IN_GAME { background-color: #1abc9c; }
         .status-LOSE { background-color: #e74c3c; }
         .status-WIN { background-color: #008000; }
-        
-        .log-error {
-            color: #c62828;
-            font-weight: 500;
-        }
+        .log-error { color: #c62828; font-weight: 500; }
     `
 
 	return (
@@ -531,15 +446,14 @@ function App() {
 				</div>
 			)}
 
-			{/* Manual ID kiritish bloki (agar Telegramda bo'lmasa) */}
-			{!playerData && !loading && !tgRef.current && (
+			{/* ID kiritish bloki endi doim birinchi ko'rinadi */}
+			{!playerData && !loading && (
 				<div id='manualConnectCard' className='card'>
 					<h3 className='text-lg font-semibold border-b border-tg-border-color pb-3 mb-4'>
-						Manual Ulanish (Test uchun)
+						Foydalanuvchi orqali ulanish
 					</h3>
 					<p className='text-sm text-tg-hint-color mb-3'>
-						Ilova Telegram'dan tashqarida ishga tushirildi. Iltimos, test uchun
-						foydalanuvchi Chat ID'sini kiriting.
+						O'yinchi ma'lumotlarini yuklash uchun uning Chat ID'sini kiriting.
 					</p>
 					<div className='flex flex-col sm:flex-row gap-2'>
 						<input
@@ -550,7 +464,7 @@ function App() {
 							className='flex-grow p-3 text-base focus:border-tg-link-color focus:ring-1 focus:ring-tg-link-color w-full'
 						/>
 						<button
-							onClick={handleManualConnect}
+							onClick={handleConnect}
 							className='btn p-3 w-full sm:w-auto'
 						>
 							Ulanish
@@ -559,114 +473,114 @@ function App() {
 				</div>
 			)}
 
-			{/* O'yinchi Ma'lumotlari */}
+			{/* Qolgan barcha qismlar `playerData` mavjud bo'lganda ko'rsatiladi */}
 			{playerData && (
-				<div id='playerCard' className='card'>
-					<h3 className='text-lg font-semibold border-b border-tg-border-color pb-3 mb-4 flex justify-between items-center'>
-						Sizning ma'lumotingiz
-					</h3>
+				<>
+					{/* O'yinchi Ma'lumotlari */}
+					<div id='playerCard' className='card'>
+						<h3 className='text-lg font-semibold border-b border-tg-border-color pb-3 mb-4 flex justify-between items-center'>
+							Sizning ma'lumotingiz
+						</h3>
 
-					<div
-						id='websocketStatus'
-						className={`p-2 rounded-lg font-bold mb-3 text-sm text-center transition-colors duration-300 ${
-							wsStatus
-								? 'bg-green-100 text-green-700'
-								: 'bg-red-100 text-red-700'
-						}`}
-					>
-						<span
-							className='inline-block w-2 h-2 mr-2 rounded-full animate-pulse'
-							style={{ backgroundColor: wsStatus ? '#2ecc71' : '#e74c3c' }}
-						></span>
-						WebSocket: {wsStatus ? 'Ulangan' : 'Uzilgan'}
+						<div
+							id='websocketStatus'
+							className={`p-2 rounded-lg font-bold mb-3 text-sm text-center transition-colors duration-300 ${
+								wsStatus
+									? 'bg-green-100 text-green-700'
+									: 'bg-red-100 text-red-700'
+							}`}
+						>
+							<span
+								className='inline-block w-2 h-2 mr-2 rounded-full animate-pulse'
+								style={{ backgroundColor: wsStatus ? '#2ecc71' : '#e74c3c' }}
+							></span>
+							WebSocket: {wsStatus ? 'Ulangan' : 'Uzilgan'}
+						</div>
+
+						<div id='playerInfo' className='text-sm leading-relaxed'>
+							<p className='mb-1'>
+								<strong>Chat ID:</strong> {playerData.chatId}
+							</p>
+							<p className='mb-1'>
+								<strong>Guruh ID:</strong>{' '}
+								{playerData.groupId ?? 'Guruhga qo‘shilmagan'}
+							</p>
+							<p className='flex items-center'>
+								<strong className='mr-2'>Holati:</strong>
+								<StatusBadge state={playerData.playerState} />
+							</p>
+						</div>
 					</div>
 
-					<div id='playerInfo' className='text-sm leading-relaxed'>
-						<p className='mb-1'>
-							<strong>Chat ID:</strong> {playerData.chatId}
-						</p>
-						<p className='mb-1'>
-							<strong>Guruh ID:</strong>{' '}
-							{playerData.groupId ?? 'Guruhga qo‘shilmagan'}
-						</p>
-						<p className='flex items-center'>
-							<strong className='mr-2'>Holati:</strong>
-							<StatusBadge state={playerData.playerState} />
-						</p>
+					{/* O'yinni Boshqarish */}
+					<div id='editSection' className='card'>
+						<h3 className='text-lg font-semibold border-b border-tg-border-color pb-3 mb-4'>
+							O'yinni Boshqarish
+						</h3>
+
+						<label
+							htmlFor='playerState'
+							className='block text-sm mb-2 font-medium text-tg-text-color'
+						>
+							Holatni o'zgartirish:
+						</label>
+						<select
+							id='playerState'
+							value={inputState}
+							onChange={e => setInputState(e.target.value)}
+							className='w-full p-3 mb-4 text-base focus:border-tg-link-color focus:ring-1 focus:ring-tg-link-color appearance-none'
+						>
+							{['WAITING', 'READY', 'PLAYING', 'IN_GAME', 'LOSE', 'WIN'].map(
+								state => (
+									<option key={state} value={state}>
+										{state}
+									</option>
+								)
+							)}
+						</select>
+
+						<label
+							htmlFor='choosePlayerId'
+							className='block text-sm mb-2 font-medium text-tg-text-color'
+						>
+							O'yinchi ID'sini tanlash (ixtiyoriy):
+						</label>
+						<input
+							type='number'
+							id='choosePlayerId'
+							placeholder='Masalan: 12345678'
+							value={inputChooseId}
+							onChange={e => setInputChooseId(e.target.value)}
+							className='w-full p-3 text-base focus:border-tg-link-color focus:ring-1 focus:ring-tg-link-color'
+						/>
+
+						<button
+							id='updateButton'
+							onClick={sendUpdate}
+							disabled={!wsStatus || !playerData.groupId}
+							className='btn w-full p-3 mt-5 shadow-lg flex items-center justify-center'
+						>
+							<SendIcon className='w-5 h-5 mr-2' />
+							Serverga yuborish
+						</button>
 					</div>
-				</div>
-			)}
 
-			{/* O'yinni Boshqarish */}
-			{playerData && (
-				<div id='editSection' className='card'>
-					<h3 className='text-lg font-semibold border-b border-tg-border-color pb-3 mb-4'>
-						O'yinni Boshqarish
-					</h3>
-
-					<label
-						htmlFor='playerState'
-						className='block text-sm mb-2 font-medium text-tg-text-color'
-					>
-						Holatni o'zgartirish:
-					</label>
-					<select
-						id='playerState'
-						value={inputState}
-						onChange={e => setInputState(e.target.value)}
-						className='w-full p-3 mb-4 text-base focus:border-tg-link-color focus:ring-1 focus:ring-tg-link-color appearance-none'
-					>
-						{['WAITING', 'READY', 'PLAYING', 'IN_GAME', 'LOSE', 'WIN'].map(
-							state => (
-								<option key={state} value={state}>
-									{state}
-								</option>
-							)
-						)}
-					</select>
-
-					<label
-						htmlFor='choosePlayerId'
-						className='block text-sm mb-2 font-medium text-tg-text-color'
-					>
-						O'yinchi ID'sini tanlash (ixtiyoriy):
-					</label>
-					<input
-						type='number'
-						id='choosePlayerId'
-						placeholder='Masalan: 12345678'
-						value={inputChooseId}
-						onChange={e => setInputChooseId(e.target.value)}
-						className='w-full p-3 text-base focus:border-tg-link-color focus:ring-1 focus:ring-tg-link-color'
-					/>
-
-					<button
-						id='updateButton'
-						onClick={sendUpdate}
-						disabled={!wsStatus || !playerData.groupId}
-						className='btn w-full p-3 mt-5 shadow-lg flex items-center justify-center'
-					>
-						<SendIcon className='w-5 h-5 mr-2' />
-						Serverga yuborish
-					</button>
-				</div>
-			)}
-
-			{/* Guruh holati (WebSocket real vaqtda) */}
-			{playerData?.groupId && (
-				<div id='groupSection' className='card'>
-					<h3 className='text-lg font-semibold border-b border-tg-border-color pb-3 mb-4 flex justify-between items-center'>
-						Guruh holati (real vaqtda)
-						<span className='text-green-500'>⚡️</span>
-					</h3>
-
-					<pre
-						id='groupData'
-						className='p-3 rounded-lg overflow-auto max-h-64 text-xs'
-					>
-						{groupData}
-					</pre>
-				</div>
+					{/* Guruh holati (WebSocket real vaqtda) */}
+					{playerData.groupId && (
+						<div id='groupSection' className='card'>
+							<h3 className='text-lg font-semibold border-b border-tg-border-color pb-3 mb-4 flex justify-between items-center'>
+								Guruh holati (real vaqtda)
+								<span className='text-green-500'>⚡️</span>
+							</h3>
+							<pre
+								id='groupData'
+								className='p-3 rounded-lg overflow-auto max-h-64 text-xs'
+							>
+								{groupData}
+							</pre>
+						</div>
+					)}
+				</>
 			)}
 
 			{/* Loglar */}
@@ -675,7 +589,6 @@ function App() {
 					Loglar va Xatolar
 					<RefreshIcon className='w-4 h-4 text-tg-hint-color' />
 				</h3>
-
 				<pre
 					id='logList'
 					ref={logListElRef}
