@@ -100,7 +100,7 @@ function App() {
 				customLog(`SockJS uchun yakuniy manzil: ${sockjsEndpoint}`, 'log')
 
 				const socket = new window.SockJS(sockjsEndpoint, null, {
-					transports: ['websocket', 'xhr-streaming', 'xhr-polling'],
+					withCredentials: true,
 				})
 
 				const client = window.Stomp.over(socket)
