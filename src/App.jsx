@@ -96,7 +96,7 @@ function App() {
 			}
 
 			try {
-				const sockjsEndpoint = `${BACKEND_URL}/wss` //xatolik tuzatildi
+				const sockjsEndpoint = `${BACKEND_URL}/ws` //xatolik tuzatildi
 				customLog(`SockJS uchun yakuniy manzil: ${sockjsEndpoint}`, 'log')
 
 				const socket = new window.SockJS(sockjsEndpoint, null, {
